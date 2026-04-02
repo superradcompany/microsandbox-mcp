@@ -1,0 +1,46 @@
+{
+  "name": "microsandbox-mcp",
+  "version": "0.3.8",
+  "description": "MCP server for microsandbox — manage microVM sandboxes from any AI agent",
+  "type": "module",
+  "bin": {
+    "microsandbox-mcp": "./bin/microsandbox-mcp.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "bin",
+    "postinstall.cjs"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "postinstall": "node postinstall.cjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "microsandbox": "^0.3.8",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/superradcompany/microsandbox-mcp"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "microsandbox",
+    "sandbox",
+    "microvm",
+    "ai-agent"
+  ]
+}
