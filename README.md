@@ -55,7 +55,6 @@ Add to `.vscode/mcp.json`:
 
 Add to your config file:
 - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
