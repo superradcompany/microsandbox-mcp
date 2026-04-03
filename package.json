@@ -1,6 +1,6 @@
 {
   "name": "microsandbox-mcp",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "MCP server for microsandbox — manage microVM sandboxes from any AI agent",
   "type": "module",
   "bin": {
@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "microsandbox": "^0.3.9",
+    "microsandbox": "^0.3.10",
     "zod": "^4.3.6"
   },
   "devDependencies": {
