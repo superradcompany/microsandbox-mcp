@@ -28,15 +28,15 @@ export function registerExecTools(server: McpServer): void {
         const handle = await Sandbox.get(name);
         const sandbox = await handle.connect();
 
-        const execConfig = {
-          cmd: command,
-          ...(args && { args }),
-          ...(cwd && { cwd }),
-          ...(env && { env }),
-          ...(timeout && { timeoutMs: timeout * 1000 }),
-        };
+        const output = await sandbox.execWith(command, (b) => {
+          let acc = b;
+          if (args) acc = acc.args(args);
+          if (cwd) acc = acc.cwd(cwd);
+          if (env) acc = acc.envs(env);
+          if (timeout) acc = acc.timeout(timeout * 1000);
+          return acc;
+        });
 
-        const output = await sandbox.execWithConfig(execConfig);
         return {
           content: [{
             type: "text",
@@ -79,11 +79,9 @@ export function registerExecTools(server: McpServer): void {
 
         let output;
         if (timeout) {
-          output = await sandbox.execWithConfig({
-            cmd: "sh",
-            args: ["-c", command],
-            timeoutMs: timeout * 1000,
-          });
+          output = await sandbox.execWith("sh", (b) =>
+            b.args(["-c", command]).timeout(timeout * 1000),
+          );
         } else {
           output = await sandbox.shell(command);
         }

@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Sandbox, Mount, Patch } from "microsandbox";
+import { Sandbox } from "microsandbox";
 import { formatError } from "../utils/errors.js";
 
 async function waitForStopped(name: string, timeoutMs = 10000): Promise<void> {
@@ -41,13 +41,13 @@ export function registerSandboxTools(server: McpServer): void {
       const name = `mcp-run-${Date.now()}`;
       let sandbox: Sandbox | undefined;
       try {
-        sandbox = await Sandbox.create({
-          name,
-          image,
-          memoryMib: memoryMib ?? 512,
-          cpus: cpus ?? 1,
-          env: env ?? {},
-        });
+        let builder = Sandbox.builder(name)
+          .image(image)
+          .memory(memoryMib ?? 512)
+          .cpus(cpus ?? 1);
+        if (env) builder = builder.envs(env);
+        sandbox = await builder.create();
+
         const output = await sandbox.shell(command);
         return {
           content: [{
@@ -117,55 +117,70 @@ export function registerSandboxTools(server: McpServer): void {
     },
     async ({ name, image, cpus, memoryMib, workdir, env, volumes, patches, entrypoint, hostname, maxDuration, idleTimeout }) => {
       try {
-        const volumeMap: Record<string, ReturnType<typeof Mount.bind> | ReturnType<typeof Mount.named> | ReturnType<typeof Mount.tmpfs>> = {};
+        let builder = Sandbox.builder(name)
+          .image(image)
+          .cpus(cpus ?? 1)
+          .memory(memoryMib ?? 512);
+
+        if (workdir) builder = builder.workdir(workdir);
+        if (env) builder = builder.envs(env);
+        if (entrypoint) builder = builder.entrypoint(entrypoint);
+        if (hostname) builder = builder.hostname(hostname);
+        if (maxDuration) builder = builder.maxDuration(maxDuration);
+        if (idleTimeout) builder = builder.idleTimeout(idleTimeout);
+
         if (volumes) {
           for (const v of volumes) {
-            switch (v.type) {
-              case "bind":
-                volumeMap[v.guestPath] = Mount.bind(v.source!, { readonly: v.readonly });
-                break;
-              case "named":
-                volumeMap[v.guestPath] = Mount.named(v.source!, { readonly: v.readonly });
-                break;
-              case "tmpfs":
-                volumeMap[v.guestPath] = Mount.tmpfs({ sizeMib: v.sizeMib });
-                break;
-            }
+            builder = builder.volume(v.guestPath, (m) => {
+              switch (v.type) {
+                case "bind": {
+                  let b = m.bind(v.source!);
+                  if (v.readonly) b = b.readonly();
+                  return b;
+                }
+                case "named": {
+                  let b = m.named(v.source!);
+                  if (v.readonly) b = b.readonly();
+                  return b;
+                }
+                case "tmpfs": {
+                  let b = m.tmpfs();
+                  if (typeof v.sizeMib === "number") b = b.size(v.sizeMib);
+                  if (v.readonly) b = b.readonly();
+                  return b;
+                }
+              }
+            });
           }
         }
 
-        const patchList = patches?.map((p) => {
-          switch (p.type) {
-            case "text":
-              return Patch.text(p.path, p.content!, { mode: p.mode });
-            case "mkdir":
-              return Patch.mkdir(p.path, { mode: p.mode });
-            case "append":
-              return Patch.append(p.path, p.content!);
-            case "remove":
-              return Patch.remove(p.path);
-            case "symlink":
-              return Patch.symlink(p.target!, p.path);
-            default:
-              throw new Error(`Unknown patch type: ${p.type}`);
-          }
-        });
+        if (patches && patches.length > 0) {
+          builder = builder.patch((p) => {
+            let acc = p;
+            for (const patch of patches) {
+              switch (patch.type) {
+                case "text":
+                  acc = acc.text(patch.path, patch.content!, { mode: patch.mode });
+                  break;
+                case "mkdir":
+                  acc = acc.mkdir(patch.path, { mode: patch.mode });
+                  break;
+                case "append":
+                  acc = acc.append(patch.path, patch.content!);
+                  break;
+                case "remove":
+                  acc = acc.remove(patch.path);
+                  break;
+                case "symlink":
+                  acc = acc.symlink(patch.target!, patch.path);
+                  break;
+              }
+            }
+            return acc;
+          });
+        }
 
-        const config = {
-          name,
-          image,
-          cpus: cpus ?? 1,
-          memoryMib: memoryMib ?? 512,
-          ...(workdir && { workdir }),
-          ...(env && { env }),
-          ...(Object.keys(volumeMap).length > 0 && { volumes: volumeMap }),
-          ...(patchList && patchList.length > 0 && { patches: patchList }),
-          ...(entrypoint && { entrypoint }),
-          ...(hostname && { hostname }),
-          ...(maxDuration && { maxDurationSecs: maxDuration }),
-        };
-
-        await Sandbox.create(config);
+        await builder.create();
 
         return {
           content: [{
