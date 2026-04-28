@@ -22,11 +22,9 @@ export function registerVolumeTools(server: McpServer): void {
     },
     async ({ name, sizeMib }) => {
       try {
-        const config = {
-          name,
-          ...(sizeMib && { quotaMib: sizeMib }),
-        };
-        await Volume.create(config);
+        let builder = Volume.builder(name);
+        if (typeof sizeMib === "number") builder = builder.quota(sizeMib);
+        await builder.create();
         return {
           content: [{ type: "text", text: JSON.stringify({ name, created: true }, null, 2) }],
         };

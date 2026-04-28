@@ -20,7 +20,7 @@ export function registerMetricsTools(server: McpServer): void {
     },
     async () => {
       try {
-        const installed = await isInstalled();
+        const installed = isInstalled();
         if (installed) {
           return {
             content: [{

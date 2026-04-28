@@ -23,7 +23,7 @@ export function registerFilesystemTools(server: McpServer): void {
       try {
         const handle = await Sandbox.get(name);
         const sandbox = await handle.connect();
-        const content = await sandbox.fs().readString(path);
+        const content = await sandbox.fs().readToString(path);
         return {
           content: [{ type: "text", text: content }],
         };
@@ -53,7 +53,7 @@ export function registerFilesystemTools(server: McpServer): void {
       try {
         const handle = await Sandbox.get(name);
         const sandbox = await handle.connect();
-        await sandbox.fs().write(path, Buffer.from(content));
+        await sandbox.fs().write(path, content);
         return {
           content: [{ type: "text", text: JSON.stringify({ path, written: true }, null, 2) }],
         };
