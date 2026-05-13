@@ -8,7 +8,7 @@ import { registerMetricsTools } from "./tools/metrics.js";
 
 const server = new McpServer({
   name: "microsandbox",
-  version: "0.4.5",
+  version: "0.4.6",
 });
 
 registerSandboxTools(server);
