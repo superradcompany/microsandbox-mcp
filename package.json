@@ -1,10 +1,10 @@
 {
   "name": "microsandbox-mcp",
-  "version": "0.4.6",
+  "version": "0.5.3",
   "description": "MCP server for microsandbox — manage microVM sandboxes from any AI agent",
   "type": "module",
   "bin": {
-    "microsandbox-mcp": "./bin/microsandbox-mcp.js"
+    "microsandbox-mcp": "bin/microsandbox-mcp.js"
   },
   "main": "./dist/index.js",
   "files": [
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "microsandbox": "^0.4.6",
+    "microsandbox": "^0.5.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -31,7 +31,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/superradcompany/microsandbox-mcp"
+    "url": "git+https://github.com/superradcompany/microsandbox-mcp.git"
   },
   "keywords": [
     "mcp",
