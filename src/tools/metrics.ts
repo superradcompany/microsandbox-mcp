@@ -86,7 +86,10 @@ export function registerMetricsTools(server: McpServer): void {
             type: "text",
             text: JSON.stringify({
               cpuPercent: m.cpuPercent,
+              vcpuTimeNs: m.vcpuTimeNs,
               memoryBytes: m.memoryBytes,
+              memoryAvailableBytes: m.memoryAvailableBytes,
+              memoryHostResidentBytes: m.memoryHostResidentBytes,
               memoryLimitBytes: m.memoryLimitBytes,
               diskReadBytes: m.diskReadBytes,
               diskWriteBytes: m.diskWriteBytes,
