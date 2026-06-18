@@ -1,72 +1,17 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Sandbox, isInstalled, install } from "microsandbox";
+import { allSandboxMetrics, Sandbox } from "microsandbox";
+
 import { formatError } from "../utils/errors.js";
+import { ok } from "../utils/response.js";
+import { metricsData } from "../utils/serialization.js";
 
 export function registerMetricsTools(server: McpServer): void {
-  server.registerTool(
-    "check_installed",
-    {
-      title: "Check Installation",
-      description:
-        "Verify that msb and libkrunfw are available on the system. " +
-        "Returns installation status. If not installed, the server can attempt to install them.",
-      inputSchema: z.object({}),
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-      },
-    },
-    async () => {
-      try {
-        const installed = isInstalled();
-        if (installed) {
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({ installed: true }, null, 2),
-            }],
-          };
-        }
-
-        // Attempt automatic installation.
-        try {
-          await install();
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                installed: true,
-                message: "Runtime dependencies were just installed.",
-              }, null, 2),
-            }],
-          };
-        } catch (installError) {
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                installed: false,
-                message:
-                  "msb and libkrunfw are not installed. " +
-                  "Install manually: curl -fsSL https://install.microsandbox.dev | sh",
-              }, null, 2),
-            }],
-            isError: true,
-          };
-        }
-      } catch (error) {
-        return formatError(error);
-      }
-    },
-  );
-
   server.registerTool(
     "sandbox_metrics",
     {
       title: "Get Sandbox Metrics",
-      description: "Get live resource usage metrics (CPU, memory, disk, network) for a running sandbox.",
+      description: "Get live resource usage metrics for a running sandbox.",
       inputSchema: z.object({
         name: z.string().describe("Sandbox name"),
       }),
@@ -80,25 +25,68 @@ export function registerMetricsTools(server: McpServer): void {
       try {
         const handle = await Sandbox.get(name);
         const sandbox = await handle.connect();
-        const m = await sandbox.metrics();
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              cpuPercent: m.cpuPercent,
-              vcpuTimeNs: m.vcpuTimeNs,
-              memoryBytes: m.memoryBytes,
-              memoryAvailableBytes: m.memoryAvailableBytes,
-              memoryHostResidentBytes: m.memoryHostResidentBytes,
-              memoryLimitBytes: m.memoryLimitBytes,
-              diskReadBytes: m.diskReadBytes,
-              diskWriteBytes: m.diskWriteBytes,
-              netRxBytes: m.netRxBytes,
-              netTxBytes: m.netTxBytes,
-              uptimeSecs: m.uptimeMs ? Math.round(m.uptimeMs / 1000) : undefined,
-            }, null, 2),
-          }],
-        };
+        return ok(metricsData(await sandbox.metrics()));
+      } catch (error) {
+        return formatError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "sandbox_metrics_all",
+    {
+      title: "Get All Sandbox Metrics",
+      description: "Get point-in-time metrics for all running sandboxes.",
+      inputSchema: z.object({}),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async () => {
+      try {
+        const metrics = await allSandboxMetrics();
+        return ok(Object.fromEntries(
+          Object.entries(metrics).map(([name, value]) => [name, metricsData(value)]),
+        ));
+      } catch (error) {
+        return formatError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "sandbox_metrics_stream",
+    {
+      title: "Sample Sandbox Metrics Stream",
+      description: "Collect a bounded number of metrics samples from a running sandbox.",
+      inputSchema: z.object({
+        name: z.string().describe("Sandbox name"),
+        intervalMs: z.number().int().positive().optional().describe("Sampling interval in milliseconds"),
+        samples: z.number().int().positive().max(100).optional().describe("Number of samples to collect"),
+      }),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+      },
+    },
+    async ({ name, intervalMs, samples }) => {
+      const stream = await (async () => {
+        const handle = await Sandbox.get(name);
+        const sandbox = await handle.connect();
+        return sandbox.metricsStream(intervalMs ?? 1000);
+      })();
+
+      try {
+        const values = [];
+        for (let i = 0; i < (samples ?? 1); i += 1) {
+          const sample = await stream.recv();
+          if (!sample) break;
+          values.push(metricsData(sample));
+        }
+        return ok({ name, intervalMs: intervalMs ?? 1000, samples: values });
       } catch (error) {
         return formatError(error);
       }
