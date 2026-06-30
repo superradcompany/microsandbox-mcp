@@ -14,7 +14,7 @@ import { registerSshTools } from "./tools/ssh.js";
 
 const server = new McpServer({
   name: "microsandbox",
-  version: "0.6.0",
+  version: "0.6.1",
 });
 
 registerResources(server);
