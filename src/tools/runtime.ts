@@ -6,7 +6,7 @@ import { emptySchema } from "../schemas/common.js";
 import { formatError } from "../utils/errors.js";
 import { ok } from "../utils/response.js";
 
-const SERVER_VERSION = "0.6.1";
+const SERVER_VERSION = "0.6.2";
 
 export function registerRuntimeTools(server: McpServer): void {
   server.registerTool(
