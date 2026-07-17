@@ -14,11 +14,14 @@ export function registerSnapshotTools(server: McpServer): void {
     "snapshot_create",
     {
       title: "Create Snapshot",
-      description: "Create a snapshot from a stopped sandbox.",
+      description: "Create a named snapshot from a stopped sandbox.",
       inputSchema: z.object({
-        sourceSandbox: z.string().describe("Stopped source sandbox name"),
-        name: z.string().optional().describe("Snapshot name under the default snapshot directory"),
-        path: z.string().optional().describe("Explicit host path for the snapshot artifact"),
+        name: z.string().describe("Snapshot name; always the artifact directory's basename"),
+        fromSandbox: z.string().describe("Stopped source sandbox name"),
+        destDir: z
+          .string()
+          .optional()
+          .describe("Allowlisted parent directory to create the artifact in, instead of the default snapshots directory"),
         labels: z.record(z.string(), z.string()).optional().describe("Snapshot labels"),
         force: z.boolean().optional().describe("Overwrite an existing destination"),
         recordIntegrity: z.boolean().optional().describe("Record upper-layer integrity metadata"),
@@ -30,18 +33,14 @@ export function registerSnapshotTools(server: McpServer): void {
         idempotentHint: false,
       },
     },
-    async ({ sourceSandbox, name, path: snapshotPath, labels, force, recordIntegrity, confirm }) => {
+    async ({ name, fromSandbox, destDir, labels, force, recordIntegrity, confirm }) => {
       try {
         if (force && !confirm) {
           return fail("dangerous_operation_disabled", "snapshot_create with force requires confirm: true");
         }
-        if ((name ? 1 : 0) + (snapshotPath ? 1 : 0) !== 1) {
-          throw new Error("snapshot_create requires exactly one of name or path");
-        }
 
-        let builder = Snapshot.builder(sourceSandbox);
-        if (name) builder = builder.name(name);
-        if (snapshotPath) builder = builder.path(assertHostPathAllowed(snapshotPath));
+        let builder = Snapshot.builder(name).fromSandbox(fromSandbox);
+        if (destDir) builder = builder.destDir(assertHostPathAllowed(destDir));
         if (force) builder = builder.force();
         if (recordIntegrity) builder = builder.recordIntegrity();
         for (const [key, value] of Object.entries(labels ?? {})) {
@@ -190,10 +189,10 @@ export function registerSnapshotTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "snapshot_export",
+    "snapshot_save",
     {
-      title: "Export Snapshot",
-      description: "Export a snapshot to a tar.zst or plain tar archive.",
+      title: "Save Snapshot",
+      description: "Save a snapshot to a tar.zst or plain tar archive.",
       inputSchema: z.object({
         pathOrName: z.string().describe("Snapshot name, digest, or host path"),
         out: z.string().describe("Allowlisted host archive output path"),
@@ -210,12 +209,12 @@ export function registerSnapshotTools(server: McpServer): void {
     async ({ pathOrName, out, withParents, withImage, plainTar }) => {
       try {
         const outputPath = assertHostPathAllowed(out);
-        await Snapshot.export(resolveSnapshotArg(pathOrName), outputPath, {
+        await Snapshot.save(resolveSnapshotArg(pathOrName), outputPath, {
           withParents,
           withImage,
           plainTar,
         });
-        return ok({ pathOrName, out: outputPath, exported: true });
+        return ok({ pathOrName, out: outputPath, saved: true });
       } catch (error) {
         return formatError(error);
       }
@@ -223,10 +222,10 @@ export function registerSnapshotTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "snapshot_import",
+    "snapshot_load",
     {
-      title: "Import Snapshot",
-      description: "Import a snapshot archive into the default or specified snapshots directory.",
+      title: "Load Snapshot",
+      description: "Load a snapshot archive into the default or specified snapshots directory.",
       inputSchema: z.object({
         archive: z.string().describe("Allowlisted host archive path"),
         dest: z.string().optional().describe("Allowlisted destination directory"),
@@ -239,7 +238,7 @@ export function registerSnapshotTools(server: McpServer): void {
     },
     async ({ archive, dest }) => {
       try {
-        const handle = await Snapshot.import(
+        const handle = await Snapshot.load(
           assertHostPathAllowed(archive),
           dest ? assertHostPathAllowed(dest) : undefined,
         );

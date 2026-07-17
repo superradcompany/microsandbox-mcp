@@ -221,14 +221,14 @@ Every tool returns a JSON envelope: `{ "ok": true, "data": ... }` on success or 
 
 | Tool | Description |
 | ---- | ----------- |
-| `snapshot_create` | Create a snapshot from a stopped sandbox by name or explicit host path |
+| `snapshot_create` | Create a named snapshot from a stopped sandbox, optionally into an allowlisted destination directory |
 | `snapshot_list` | List indexed snapshots |
 | `snapshot_inspect` | Inspect snapshot metadata by name, digest, or path, optionally verifying integrity |
 | `snapshot_verify` | Verify recorded snapshot content integrity |
 | `snapshot_remove` | Remove one or more snapshots, optionally forced with confirmation |
 | `snapshot_reindex` | Rebuild the local snapshot index |
-| `snapshot_export` | Export a snapshot to an allowlisted host archive path |
-| `snapshot_import` | Import a snapshot archive from an allowlisted host path |
+| `snapshot_save` | Save a snapshot to an allowlisted host archive path |
+| `snapshot_load` | Load a snapshot archive from an allowlisted host path |
 
 **SSH and SFTP**
 
@@ -260,7 +260,7 @@ Every tool returns a JSON envelope: `{ "ok": true, "data": ... }` on success or 
 
 | Env var | Default | Description |
 | ------- | ------- | ----------- |
-| `MICROSANDBOX_MCP_HOST_PATHS` | current working directory | Colon-separated allowlist for bind mounts, host copy, snapshot import/export, and other host path operations |
+| `MICROSANDBOX_MCP_HOST_PATHS` | current working directory | Colon-separated allowlist for bind mounts, host copy, snapshot save/load, and other host path operations |
 | `MICROSANDBOX_MCP_HOST_PATH_POLICY` | `allowlist` | Set to `unrestricted` to allow any host path |
 | `MICROSANDBOX_MCP_ENABLE_DANGEROUS` | `0` | Enables future dangerous operations; destructive cache operations still require explicit `confirm: true` |
 | `MICROSANDBOX_MCP_MAX_OUTPUT_BYTES` | `1048576` | Default cap for command output, logs, and file reads |
