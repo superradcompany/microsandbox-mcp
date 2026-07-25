@@ -135,7 +135,7 @@ export function snapshotData(snapshot: Snapshot): Record<string, unknown> {
   return {
     path: snapshot.path,
     digest: snapshot.digest,
-    sizeBytes: snapshot.sizeBytes.toString(),
+    sizeBytes: bigintToString(snapshot.sizeBytes),
     imageRef: snapshot.imageRef,
     imageManifestDigest: snapshot.imageManifestDigest,
     scope: snapshot.scope,
