@@ -696,11 +696,11 @@ async function resolveSandboxHandles(
   }
 
   if (Object.keys(selector.labels ?? {}).length > 0) {
-    for (const handle of await Sandbox.listWith({ labels: selector.labels })) {
+    for (const handle of await listSandboxHandles(selector.labels)) {
       map.set(handle.name, handle);
     }
   } else if (names.length === 0 && (selector.status !== undefined || options.defaultAll)) {
-    for (const handle of await Sandbox.list()) {
+    for (const handle of await listSandboxHandles()) {
       map.set(handle.name, handle);
     }
   }
@@ -711,6 +711,22 @@ async function resolveSandboxHandles(
   }
   handles.sort((left, right) => left.name.localeCompare(right.name));
   return handles;
+}
+
+async function listSandboxHandles(labels?: Record<string, string>): Promise<SandboxHandle[]> {
+  const sandboxes: SandboxHandle[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await Sandbox.listWith((list) => {
+      let configured = list.limit(100);
+      if (cursor) configured = configured.cursor(cursor);
+      if (labels) configured = configured.labels(labels);
+      return configured;
+    });
+    sandboxes.push(...page.sandboxes);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return sandboxes;
 }
 
 function resolvePathOrName(value: string): string {
