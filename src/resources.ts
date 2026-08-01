@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Image, isInstalled, Sandbox, Snapshot, Volume } from "microsandbox";
+import { Image, isInstalled, Sandbox, type SandboxHandle, Snapshot, Volume } from "microsandbox";
 
 import { getServerConfig } from "./config.js";
 import { sandboxCreateSchema } from "./tools/sandbox.js";
@@ -39,7 +39,7 @@ export function registerResources(server: McpServer): void {
       description: "Current sandbox inventory.",
       mimeType: "application/json",
     },
-    async (uri) => jsonResource(uri, (await Sandbox.list()).map(sandboxSummaryData)),
+    async (uri) => jsonResource(uri, (await listAllSandboxes()).map(sandboxSummaryData)),
   );
 
   server.registerResource(
@@ -96,6 +96,20 @@ export function registerResources(server: McpServer): void {
     },
     async (uri) => jsonResource(uri, policyData()),
   );
+}
+
+async function listAllSandboxes(): Promise<SandboxHandle[]> {
+  const sandboxes: SandboxHandle[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await Sandbox.listWith((list) => {
+      const configured = list.limit(100);
+      return cursor ? configured.cursor(cursor) : configured;
+    });
+    sandboxes.push(...page.sandboxes);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return sandboxes;
 }
 
 function jsonResource(uri: URL, data: unknown) {
