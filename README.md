@@ -266,8 +266,14 @@ Every tool returns a JSON envelope: `{ "ok": true, "data": ... }` on success or 
 | `MICROSANDBOX_MCP_MAX_OUTPUT_BYTES` | `1048576` | Default cap for command output, logs, and file reads |
 | `MICROSANDBOX_MCP_DEFAULT_TIMEOUT_MS` | `120000` | Default timeout budget for exec-style operations |
 | `MICROSANDBOX_MCP_SESSION_TTL_MS` | `900000` | Idle TTL for in-memory exec sessions |
+| `MSB_BACKEND` | unset | Explicit backend selection: `local` or `cloud` |
+| `MSB_PROFILE` | unset | Select a named backend profile from `~/.microsandbox/config.json` |
+| `MSB_API_KEY` | unset | API key used after Cloud is selected; does not select Cloud by itself |
+| `MSB_API_URL` | `https://api.microsandbox.dev` | Optional endpoint override used after Cloud is selected |
 | `MSB_PATH` | unset | Optional path to the `msb` binary for SDK/runtime discovery |
 | `MSB_LIBKRUNFW_PATH` | unset | Optional path to `libkrunfw` |
+
+Cloud execution is opt-in. Set both `MSB_BACKEND=cloud` and `MSB_API_KEY`, or select a cloud profile with `MSB_PROFILE`/`active_profile`. Selecting Cloud without a usable credential returns a configuration error and never falls back to the local runtime.
 
 ## SDK Gaps
 
