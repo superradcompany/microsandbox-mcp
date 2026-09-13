@@ -138,6 +138,7 @@ Every tool returns a JSON envelope: `{ "ok": true, "data": ... }` on success or 
 | ---- | ----------- |
 | `sandbox_run` | Create an ephemeral sandbox, run a shell command, return output, and remove it |
 | `sandbox_create` | Create and boot a persistent sandbox with rootfs, resources, process, mounts, patches, network, secrets, and lifecycle options |
+| `sandbox_restore` | Restore a snapshot or archive as a persistent sandbox, with optional CoW memory and explicit host mappings |
 | `sandbox_start` | Start stopped sandboxes by name, labels, or status selector |
 | `sandbox_list` | List sandboxes with status, image, labels, and timestamps |
 | `sandbox_status` | Show status for one sandbox or a filtered sandbox set |
@@ -146,6 +147,20 @@ Every tool returns a JSON envelope: `{ "ok": true, "data": ... }` on success or 
 | `sandbox_drain` | Request graceful drain for selected sandboxes |
 | `sandbox_wait` | Wait until selected sandboxes reach a terminal state |
 | `sandbox_remove` | Remove selected stopped sandboxes, optionally force-stopping running ones first |
+
+Restore saved execution with `sandbox_restore`:
+
+```json
+{ "name": "restored", "snapshot": "app:ready", "forked": true }
+```
+
+Or boot only the disks from an allowlisted archive:
+
+```json
+{ "name": "restored", "snapshot": "./ready.msnap", "diskOnly": true }
+```
+
+Use `snapshotBase` for a dependent archive. Host resources are not inherited: supply `volumes`, `ports`, or `vsock` explicitly. `externalMountPolicy` (`strict` or `relaxed`) validates those mappings. Restore rejects fresh-boot settings such as CPU, memory, image, and patches; `sandbox_create` and `sandbox_run` no longer accept `rootfs.kind: "snapshot"`.
 
 **Command Execution**
 

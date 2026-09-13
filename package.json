@@ -16,7 +16,8 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "test": "npm run build && node --test tests/*.test.mjs",
-    "test:e2e": "npm run build && node tests/e2e-all-tools.mjs"
+    "test:e2e": "npm run build && node tests/e2e-all-tools.mjs",
+    "test:e2e:restore": "npm run build && node tests/e2e-restore.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

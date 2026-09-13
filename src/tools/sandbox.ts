@@ -1,6 +1,9 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Sandbox, type SandboxHandle } from "microsandbox";
+import { Sandbox, Snapshot, type SandboxHandle } from "microsandbox";
 
 import { formatError } from "../utils/errors.js";
 import { formatExecOutput } from "../utils/exec-output.js";
@@ -70,7 +73,6 @@ const rootfsSchema = z.discriminatedUnion("kind", [
     path: z.string(),
     fstype: z.string().optional(),
   }),
-  z.object({ kind: z.literal("snapshot"), pathOrName: z.string() }),
 ]);
 
 export const sandboxCreateSchema = z.object({
@@ -159,6 +161,30 @@ export const sandboxCreateSchema = z.object({
 
 const createSchema = sandboxCreateSchema;
 
+// Restore cannot accept fresh-boot configuration: reject it rather than dropping it.
+export const sandboxRestoreSchema = z.strictObject({
+  name: z.string().min(1).describe("Unique destination sandbox name"),
+  snapshot: z.string().min(1).describe("Installed snapshot reference or allowlisted archive/directory path"),
+  snapshotBase: z.string().min(1).optional().describe("Base snapshot for a dependent archive"),
+  forked: z.boolean().optional().describe("Restore captured RAM using private copy-on-write mappings"),
+  diskOnly: z.boolean().optional().describe("Boot only the captured disks, without restoring execution"),
+  user: z.string().optional(),
+  logLevel: z.enum(["error", "warn", "info", "debug", "trace"]).optional(),
+  externalMountPolicy: z.enum(["strict", "relaxed"]).optional().describe("Validate explicitly supplied mappings; does not inherit host resources"),
+  volumes: z.array(mountSchema.strict()).optional(),
+  ports: z.array(z.strictObject({
+    hostPort: z.number().int().min(1).max(65535),
+    guestPort: z.number().int().min(1).max(65535),
+    bindAddress: z.string().optional(),
+    protocol: z.enum(["tcp", "udp"]).optional(),
+  })).optional(),
+  vsock: z.array(z.strictObject({
+    path: z.string().min(1),
+    port: z.number().int().min(1).max(4294967295),
+    datagram: z.boolean().optional(),
+  })).optional(),
+});
+
 export function registerSandboxTools(server: McpServer): void {
   server.registerTool(
     "sandbox_run",
@@ -220,6 +246,53 @@ export function registerSandboxTools(server: McpServer): void {
         if (args.lifecycle?.detached !== false) {
           await sandbox.detach();
         }
+        return ok({ name: args.name, status: "running" });
+      } catch (error) {
+        return formatError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "sandbox_restore",
+    {
+      title: "Restore Sandbox",
+      description: "Restore a persistent sandbox from a snapshot or archive. Captured execution resumes by default; host resources are not inherited. Use diskOnly for a fresh boot of the captured disks.",
+      inputSchema: sandboxRestoreSchema,
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async (input) => {
+      try {
+        const args = sandboxRestoreSchema.parse(input);
+        const snapshot = await resolveRestoreSnapshot(args.snapshot);
+        const base = args.snapshotBase ? await resolveRestoreSnapshot(args.snapshotBase) : undefined;
+        let builder = Sandbox.restore(snapshot).name(args.name);
+        if (base) builder = builder.snapshotBase(base);
+        if (args.forked) builder = builder.forked();
+        if (args.diskOnly) builder = builder.diskOnly();
+        if (args.user) builder = builder.user(args.user);
+        if (args.logLevel) builder = builder.logLevel(args.logLevel);
+        if (args.externalMountPolicy) builder = builder.externalMountPolicy(args.externalMountPolicy);
+        for (const mount of args.volumes ?? []) {
+          builder = builder.volume(mount.guestPath, configureMount(mount));
+        }
+        for (const port of args.ports ?? []) {
+          if (port.protocol === "udp") {
+            builder = port.bindAddress
+              ? builder.portUdpBind(port.bindAddress, port.hostPort, port.guestPort)
+              : builder.portUdp(port.hostPort, port.guestPort);
+          } else {
+            builder = port.bindAddress
+              ? builder.portBind(port.bindAddress, port.hostPort, port.guestPort)
+              : builder.port(port.hostPort, port.guestPort);
+          }
+        }
+        for (const socket of args.vsock ?? []) {
+          const socketPath = assertHostPathAllowed(socket.path);
+          builder = socket.datagram ? builder.vsockDgram(socketPath, socket.port) : builder.vsock(socketPath, socket.port);
+        }
+        // Restore is detached by contract; it must never fall back to create().
+        await builder.restore();
         return ok({ name: args.name, status: "running" });
       } catch (error) {
         return formatError(error);
@@ -642,8 +715,6 @@ function applyRootfs(builder: ReturnType<typeof Sandbox.builder>, args: z.infer<
           if (rootfs.fstype) acc = acc.fstype(rootfs.fstype);
           return acc;
         });
-      case "snapshot":
-        return builder.fromSnapshot(resolvePathOrName(rootfs.pathOrName));
     }
   }
 
@@ -652,7 +723,11 @@ function applyRootfs(builder: ReturnType<typeof Sandbox.builder>, args: z.infer<
 }
 
 function applyMount(builder: ReturnType<typeof Sandbox.builder>, mount: z.infer<typeof mountSchema>) {
-  return builder.volume(mount.guestPath, (m) => {
+  return builder.volume(mount.guestPath, configureMount(mount));
+}
+
+function configureMount(mount: z.infer<typeof mountSchema>): Parameters<ReturnType<typeof Sandbox.restore>["volume"]>[1] {
+  return (m) => {
     let acc = m;
     switch (mount.kind) {
       case "bind":
@@ -678,7 +753,17 @@ function applyMount(builder: ReturnType<typeof Sandbox.builder>, mount: z.infer<
     if (mount.statVirtualization) acc = acc.statVirtualization(mount.statVirtualization);
     if (mount.hostPermissions) acc = acc.hostPermissions(mount.hostPermissions);
     return acc;
-  });
+  };
+}
+
+async function resolveRestoreSnapshot(value: string): Promise<string> {
+  // Bare relative filenames also need the allowlist. Resolve identifiers through
+  // the index explicitly, so a failed lookup cannot fall back to an unchecked path.
+  if (fs.existsSync(value) || path.isAbsolute(value) || path.win32.isAbsolute(value)
+    || value.includes("/") || value.includes("\\") || value.startsWith("~")) {
+    return assertHostPathAllowed(value);
+  }
+  return (await Snapshot.get(value)).path;
 }
 
 async function resolveSandboxHandles(
