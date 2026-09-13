@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Sandbox, type SandboxHandle } from "microsandbox";
+import { Sandbox, type SandboxHandle, type SandboxBuilder } from "microsandbox";
 
 import { formatError } from "../utils/errors.js";
 import { formatExecOutput } from "../utils/exec-output.js";
@@ -178,8 +178,7 @@ export function registerSandboxTools(server: McpServer): void {
       const name = args.name ?? `mcp-run-${Date.now()}`;
       let sandbox: Awaited<ReturnType<ReturnType<typeof Sandbox.builder>["create"]>> | undefined;
       try {
-        const builder = buildSandbox(name, args, false);
-        sandbox = await builder.create();
+        sandbox = await createSandbox(name, args, false);
         const output = await sandbox.shell(args.command);
         const result = formatExecOutput(output);
         return ok({ name, ...result.data }, { truncated: result.truncated });
@@ -215,8 +214,7 @@ export function registerSandboxTools(server: McpServer): void {
     },
     async (args) => {
       try {
-        const builder = buildSandbox(args.name, args, true);
-        const sandbox = await builder.create();
+        const sandbox = await createSandbox(args.name, args, true);
         if (args.lifecycle?.detached !== false) {
           await sandbox.detach();
         }
@@ -472,6 +470,44 @@ async function waitForStopped(name: string, timeoutMs = 10000): Promise<void> {
   }
 }
 
+async function createSandbox(name: string, args: z.infer<typeof createSchema>, persistent: boolean) {
+  if (args.rootfs?.kind !== "snapshot") {
+    return buildSandbox(name, args, persistent).create();
+  }
+
+  // A snapshot is captured execution, not a rootfs image. Keep the existing MCP
+  // input but route it through the SDK's explicit restore contract. Never discard
+  // create-only settings or silently cold-boot a full snapshot to satisfy them.
+  const unsupported = Object.entries(args)
+    .filter(([key, value]) => value !== undefined && !["name", "rootfs", "process", "lifecycle", "network", "volumes", "mounts", "command"].includes(key))
+    .map(([key]) => key);
+  for (const [group, values, allowed] of [
+    ["process", args.process, ["user"]],
+    ["lifecycle", args.lifecycle, ["logLevel"]],
+    ["network", args.network, ["ports"]],
+  ] as const) {
+    for (const [key, value] of Object.entries(values ?? {})) {
+      if (value !== undefined && !(allowed as readonly string[]).includes(key)) unsupported.push(`${group}.${key}`);
+    }
+  }
+  if (unsupported.length > 0) {
+    throw new Error(`snapshot restore does not support create-only options: ${unsupported.join(", ")}; omit them to preserve the captured configuration`);
+  }
+
+  let builder = Sandbox.restore(resolvePathOrName(args.rootfs.pathOrName)).name(name);
+  if (args.process?.user) builder = builder.user(args.process.user);
+  if (args.lifecycle?.logLevel) builder = builder.logLevel(args.lifecycle.logLevel);
+  for (const mount of [...(args.volumes ?? []), ...(args.mounts ?? [])]) builder = applyMount(builder, mount);
+  for (const port of args.network?.ports ?? []) {
+    const protocol = port.protocol ?? "tcp";
+    if (protocol === "udp" && port.bindAddress) builder = builder.portUdpBind(port.bindAddress, port.hostPort, port.guestPort);
+    else if (protocol === "udp") builder = builder.portUdp(port.hostPort, port.guestPort);
+    else if (port.bindAddress) builder = builder.portBind(port.bindAddress, port.hostPort, port.guestPort);
+    else builder = builder.port(port.hostPort, port.guestPort);
+  }
+  return builder.restore();
+}
+
 function buildSandbox(name: string, args: z.infer<typeof createSchema>, persistent: boolean) {
   let builder = Sandbox.builder(name);
   builder = applyRootfs(builder, args);
@@ -643,7 +679,7 @@ function applyRootfs(builder: ReturnType<typeof Sandbox.builder>, args: z.infer<
           return acc;
         });
       case "snapshot":
-        return builder.fromSnapshot(resolvePathOrName(rootfs.pathOrName));
+        throw new Error("snapshot inputs must use the restore path");
     }
   }
 
@@ -651,7 +687,10 @@ function applyRootfs(builder: ReturnType<typeof Sandbox.builder>, args: z.infer<
   return builder.image(resolvePathOrName(args.image));
 }
 
-function applyMount(builder: ReturnType<typeof Sandbox.builder>, mount: z.infer<typeof mountSchema>) {
+function applyMount<T>(
+  builder: { volume(guest: string, configure: Parameters<SandboxBuilder["volume"]>[1]): T },
+  mount: z.infer<typeof mountSchema>,
+): T {
   return builder.volume(mount.guestPath, (m) => {
     let acc = m;
     switch (mount.kind) {

@@ -289,6 +289,10 @@ Use `runtime_check` to verify whether `msb` and `libkrunfw` are available. Use `
 curl -fsSL https://install.microsandbox.dev | sh
 ```
 
+### Snapshot inputs
+
+`rootfs: { "kind": "snapshot", "pathOrName": "saved" }` in `sandbox_create` and `sandbox_run` uses the SDK's dedicated restore operation. Disk snapshots boot their saved disk state; full snapshots resume captured execution. Restore accepts explicit volume/mount bindings, published ports, `process.user`, and `lifecycle.logLevel`. It rejects create-only options such as image, CPU/memory sizing, environment, startup commands, patches, lifecycle replacement, and network-policy changes rather than ignoring them. Restores are detached; `sandbox_run` still stops and removes its sandbox after the requested shell command.
+
 ## Development
 
 ```bash
