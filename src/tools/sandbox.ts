@@ -763,7 +763,8 @@ async function resolveRestoreSnapshot(value: string): Promise<string> {
     || value.includes("/") || value.includes("\\") || value.startsWith("~")) {
     return assertHostPathAllowed(value);
   }
-  return (await Snapshot.get(value)).path;
+  // The index owns the canonical reference: local paths stay paths, cloud IDs stay IDs.
+  return (await Snapshot.get(value)).reference;
 }
 
 async function resolveSandboxHandles(

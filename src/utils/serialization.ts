@@ -119,6 +119,9 @@ export function volumeHandleData(handle: VolumeHandle): Record<string, unknown> 
 
 export function snapshotHandleData(handle: SnapshotHandle): Record<string, unknown> {
   return {
+    reference: handle.reference,
+    referenceKind: handle.referenceKind,
+    path: handle.referenceKind === "path" ? handle.reference : null,
     digest: handle.digest,
     name: handle.name,
     parentDigest: handle.parentDigest,
@@ -127,13 +130,14 @@ export function snapshotHandleData(handle: SnapshotHandle): Record<string, unkno
     format: handle.format,
     sizeBytes: bigintToString(handle.sizeBytes),
     createdAt: toIso(handle.createdAt),
-    path: handle.path,
   };
 }
 
 export function snapshotData(snapshot: Snapshot): Record<string, unknown> {
   return {
-    path: snapshot.path,
+    reference: snapshot.reference,
+    referenceKind: snapshot.referenceKind,
+    path: snapshot.referenceKind === "path" ? snapshot.reference : null,
     digest: snapshot.digest,
     sizeBytes: bigintToString(snapshot.sizeBytes),
     imageRef: snapshot.imageRef,
