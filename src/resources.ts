@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Image, isInstalled, Sandbox, type SandboxHandle, Snapshot, Volume } from "microsandbox";
+import { Image, isRuntimeInstalled, Sandbox, type SandboxHandle, Snapshot, Volume } from "microsandbox";
 
 import { getServerConfig } from "./config.js";
 import { sandboxCreateSchema } from "./tools/sandbox.js";
@@ -21,7 +21,7 @@ export function registerResources(server: McpServer): void {
       mimeType: "application/json",
     },
     async (uri) => jsonResource(uri, {
-      installed: isInstalled(),
+      installed: isRuntimeInstalled(),
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,

@@ -29,7 +29,7 @@ test("restore uses the dedicated terminal and forwards only explicit mappings", 
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "mcp-restore-")));
   t.after(() => { fs.rmSync(root, { recursive: true, force: true }); resetServerConfigForTests(); });
   t.mock.method(process, "cwd", () => root);
-  t.mock.method(Snapshot, "get", async (ref) => ({ path: `/indexed/${ref}` }));
+  t.mock.method(Snapshot, "get", async (ref) => ({ reference: `/indexed/${ref}` }));
   const calls = [];
   const mount = new Proxy({}, { get: (_, name) => (...args) => { calls.push([name, ...args]); return mount; } });
   const builder = new Proxy({}, { get: (_, name) => (...args) => {
@@ -62,6 +62,50 @@ test("restore uses the dedicated terminal and forwards only explicit mappings", 
   assert.match(failed.content[0].text, /restore failed/);
 });
 
+test("restore preserves cloud source and base IDs without reading a host path", async (t) => {
+  const calls = [];
+  t.mock.method(Snapshot, "get", async (reference) => ({
+    reference,
+    referenceKind: "id",
+    get path() { throw new Error("cloud snapshots have no host path"); },
+  }));
+  const builder = new Proxy({}, { get: (_, name) => (...args) => {
+    calls.push([name, ...args]);
+    return name === "restore" ? Promise.resolve({}) : builder;
+  } });
+  t.mock.method(Sandbox, "restore", (reference) => { calls.push(["source", reference]); return builder; });
+  t.mock.method(Sandbox, "builder", () => { throw new Error("restore must never create"); });
+  const response = await tools().get("sandbox_restore").handler({
+    name: "cloud-child", snapshot: "cloud-snapshot-id", snapshotBase: "cloud-base-id",
+  });
+  assert.equal(JSON.parse(response.content[0].text).ok, true);
+  assert.deepEqual(calls, [
+    ["source", "cloud-snapshot-id"], ["name", "cloud-child"],
+    ["snapshotBase", "cloud-base-id"], ["restore"],
+  ]);
+});
+
+test("failed source or base lookups never fall back to a path or creation", async (t) => {
+  const lookups = [];
+  const lookup = t.mock.method(Snapshot, "get", async (reference) => {
+    lookups.push(reference);
+    if (reference === "missing") throw new Error("snapshot lookup failed");
+    return { reference: "/indexed/ready" };
+  });
+  const restore = t.mock.method(Sandbox, "restore", () => { throw new Error("restore must not start"); });
+  const create = t.mock.method(Sandbox, "builder", () => { throw new Error("restore must never create"); });
+  const handler = tools().get("sandbox_restore").handler;
+  for (const args of [{ snapshot: "missing" }, { snapshot: "ready", snapshotBase: "missing" }]) {
+    const response = await handler({ name: "child", ...args });
+    assert.equal(response.isError, true);
+    assert.match(response.content[0].text, /snapshot lookup failed/);
+  }
+  assert.deepEqual(lookups, ["missing", "ready", "missing"]);
+  assert.equal(lookup.mock.callCount(), 3);
+  assert.equal(restore.mock.callCount(), 0);
+  assert.equal(create.mock.callCount(), 0);
+});
+
 test("restore enforces host policy for archives, bases, mounts and sockets", async (t) => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "mcp-restore-policy-")));
   const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "mcp-restore-outside-")));
@@ -77,7 +121,7 @@ test("restore enforces host policy for archives, bases, mounts and sockets", asy
     resetServerConfigForTests();
     fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(outside, { recursive: true, force: true });
   });
-  t.mock.method(Snapshot, "get", async () => ({ path: "/indexed/ready" }));
+  t.mock.method(Snapshot, "get", async () => ({ reference: "/indexed/ready" }));
   let restores = 0;
   const mount = new Proxy({}, { get: () => () => mount });
   const builder = new Proxy({}, { get: (_, name) => (...args) => {

@@ -1,12 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { install, isInstalled } from "microsandbox";
+import { ensureRuntime, isRuntimeInstalled } from "microsandbox";
 
 import { getServerConfig } from "../config.js";
 import { emptySchema } from "../schemas/common.js";
 import { formatError } from "../utils/errors.js";
 import { ok } from "../utils/response.js";
 
-const SERVER_VERSION = "0.6.18";
+const SERVER_VERSION = "0.7.0";
 
 export function registerRuntimeTools(server: McpServer): void {
   server.registerTool(
@@ -25,7 +25,7 @@ export function registerRuntimeTools(server: McpServer): void {
       try {
         const config = getServerConfig();
         return ok({
-          installed: isInstalled(),
+          installed: isRuntimeInstalled(),
           serverVersion: SERVER_VERSION,
           nodeVersion: process.version,
           platform: process.platform,
@@ -56,12 +56,11 @@ export function registerRuntimeTools(server: McpServer): void {
     },
     async () => {
       try {
-        if (!isInstalled()) {
-          await install();
-        }
+        // Preserve home-first resolution and let ensure report incomplete installations.
+        await ensureRuntime();
 
         return ok({
-          installed: isInstalled(),
+          installed: isRuntimeInstalled(),
           message: "Runtime dependencies are installed.",
         });
       } catch (error) {
