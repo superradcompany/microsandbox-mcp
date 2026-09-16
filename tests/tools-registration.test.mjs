@@ -44,6 +44,7 @@ test("registers the full tool catalog", () => {
     "runtime_install",
     "sandbox_run",
     "sandbox_create",
+    "sandbox_restore",
     "sandbox_start",
     "sandbox_list",
     "sandbox_status",
