@@ -148,7 +148,7 @@ Every tool returns a JSON envelope: `{ "ok": true, "data": ... }` on success or 
 | `sandbox_wait` | Wait until selected sandboxes reach a terminal state |
 | `sandbox_remove` | Remove selected stopped sandboxes, optionally force-stopping running ones first |
 
-Restore saved execution with `sandbox_restore`:
+Restore saved execution with `sandbox_restore`. The MCP input remains `forked` for compatibility; it enables copy-on-write memory during restore and maps to the SDK’s `.cowMemory()`. It does not perform a live fork:
 
 ```json
 { "name": "restored", "snapshot": "app:ready", "forked": true }
