@@ -268,7 +268,8 @@ export function registerSandboxTools(server: McpServer): void {
         const base = args.snapshotBase ? await resolveRestoreSnapshot(args.snapshotBase) : undefined;
         let builder = Sandbox.restore(snapshot).name(args.name);
         if (base) builder = builder.snapshotBase(base);
-        if (args.forked) builder = builder.forked();
+        // Preserve the MCP input name while using the SDK's explicit memory option.
+        if (args.forked) builder = builder.cowMemory();
         if (args.diskOnly) builder = builder.diskOnly();
         if (args.user) builder = builder.user(args.user);
         if (args.logLevel) builder = builder.logLevel(args.logLevel);
