@@ -49,7 +49,7 @@ test("restore uses the dedicated terminal and forwards only explicit mappings", 
     vsock: [{ path: path.join(root, "agent.sock"), port: 9000 }],
   });
   assert.equal(JSON.parse(response.content[0].text).ok, true);
-  for (const call of [["source", "/indexed/app:ready"], ["snapshotBase", "/indexed/app:base"], ["name", "child"], ["forked"],
+  for (const call of [["source", "/indexed/app:ready"], ["snapshotBase", "/indexed/app:base"], ["name", "child"], ["cowMemory"],
     ["externalMountPolicy", "strict"], ["bind", root], ["readonly"], ["port", 8080, 80], ["portUdpBind", "127.0.0.1", 5353, 53], ["restore"]]) {
     assert.ok(calls.some((actual) => JSON.stringify(actual) === JSON.stringify(call)), JSON.stringify(call));
   }
