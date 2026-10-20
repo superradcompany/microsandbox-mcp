@@ -2,9 +2,9 @@ import path from "node:path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Snapshot } from "microsandbox";
 
 import { formatError } from "../utils/errors.js";
+import { Snapshot } from "../utils/snapshot-api.js";
 import { assertHostPathAllowed } from "../utils/policy.js";
 import { fail, ok } from "../utils/response.js";
 import { snapshotData, snapshotHandleData } from "../utils/serialization.js";

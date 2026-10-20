@@ -3,9 +3,10 @@ import path from "node:path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Sandbox, Snapshot, type SandboxHandle } from "microsandbox";
+import { Sandbox, type SandboxHandle } from "microsandbox";
 
 import { formatError } from "../utils/errors.js";
+import { Snapshot } from "../utils/snapshot-api.js";
 import { formatExecOutput } from "../utils/exec-output.js";
 import { assertHostPathAllowed } from "../utils/policy.js";
 import { ok } from "../utils/response.js";

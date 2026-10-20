@@ -290,6 +290,8 @@ Use `snapshotBase` for a dependent archive. Host resources are not inherited: su
 
 Cloud execution is opt-in. Set both `MSB_BACKEND=cloud` and `MSB_API_KEY`, or select a cloud profile with `MSB_PROFILE`/`active_profile`. Selecting Cloud without a usable credential returns a configuration error and never falls back to the local runtime.
 
+The existing snapshot tools and resource continue to describe individual checkpoint artifacts. With the group-oriented SDK, they select `Checkpoint`; with released SDKs, they select the artifact-oriented `Snapshot`. Selection checks the available operations before dispatch, without invoking a mutation or retrying a failed operation through another API. Tool inputs, result fields, cloud references and host-path policy remain unchanged. This adapter does not add group-management tools.
+
 ## SDK Gaps
 
 The server intentionally stays a thin TypeScript SDK adapter and does not shell out to `msb` for core behavior. Image pull/load/save, persistent registry login/logout/list, SSH authorization management, and managed SSH serving are not exposed until the TypeScript SDK provides first-class APIs for them. Command aliases (`msb install`/`msb uninstall`) and runtime self-update/uninstall are intentionally out of scope.

@@ -5,7 +5,8 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { Sandbox, Snapshot } from "microsandbox";
+import { Sandbox } from "microsandbox";
+import { Snapshot } from "../dist/utils/snapshot-api.js";
 
 // Opt-in live test: uses the selected local runtime, never installs or upgrades it.
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "mcp-restore-live-")));
