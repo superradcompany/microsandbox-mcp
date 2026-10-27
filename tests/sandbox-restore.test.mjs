@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { Sandbox, Snapshot } from "microsandbox";
+import { Sandbox } from "microsandbox";
+import { Snapshot } from "../dist/utils/snapshot-api.js";
 import { resetServerConfigForTests } from "../dist/config.js";
 import { registerSandboxTools, sandboxRestoreSchema } from "../dist/tools/sandbox.js";
 

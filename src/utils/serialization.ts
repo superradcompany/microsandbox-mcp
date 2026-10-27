@@ -6,10 +6,10 @@ import type {
   LogEntry,
   SandboxHandle,
   SandboxMetrics,
-  Snapshot,
   SnapshotHandle,
   VolumeHandle,
 } from "microsandbox";
+import type { Snapshot } from "./snapshot-api.js";
 
 export function sandboxHandleData(handle: SandboxHandle): Record<string, unknown> {
   return {
