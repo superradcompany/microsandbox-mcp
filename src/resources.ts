@@ -1,8 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Image, isRuntimeInstalled, Sandbox, type SandboxHandle, Snapshot, Volume } from "microsandbox";
+import { Image, isRuntimeInstalled, Sandbox, type SandboxHandle, Volume } from "microsandbox";
 
 import { getServerConfig } from "./config.js";
+import { Snapshot } from "./utils/snapshot-api.js";
 import { sandboxCreateSchema } from "./tools/sandbox.js";
 import {
   imageHandleData,
