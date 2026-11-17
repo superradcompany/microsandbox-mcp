@@ -12,7 +12,7 @@ import type { Snapshot } from "./snapshot-api.js";
 
 export async function sandboxHandleData(handle: SandboxHandle): Promise<Record<string, unknown>> {
   const current = typeof Reflect.get(handle, "info") === "function";
-  const info = current ? await observation<Record<string, unknown>>(handle, "info") : handle;
+  const info: object = current ? await observation<Record<string, unknown>>(handle, "info") : handle;
   return {
     name: handle.name,
     status: Reflect.get(info, "status"),
@@ -156,11 +156,11 @@ export async function snapshotData(snapshot: Snapshot): Promise<Record<string, u
   };
 }
 
-export function toIso(value: unknown): string | null {
+export function toIso(value: Date | number | string | null | undefined): string | null {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString();
   if (typeof value === "number") return new Date(value).toISOString();
-  return typeof value === "string" ? value : null;
+  return value;
 }
 
 export function parseDate(value: string | undefined): Date | undefined {
