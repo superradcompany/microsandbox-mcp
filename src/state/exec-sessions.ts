@@ -1,3 +1,4 @@
+import { sandboxStatus } from "../utils/sdk-compat.js";
 import crypto from "node:crypto";
 
 import type { ExecEvent, ExecHandle, ExecSink, ExitStatus } from "microsandbox";
@@ -185,7 +186,7 @@ async function stopSandboxIfNeeded(session: ExecSession): Promise<void> {
 async function stopSandboxByName(name: string): Promise<void> {
   try {
     const handle = await Sandbox.get(name);
-    if (handle.status === "running") await handle.stop();
+    if (await sandboxStatus(handle) === "running") await handle.stop();
   } catch {
     // Best-effort cleanup for sandboxes started only to host an exec session.
   }

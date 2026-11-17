@@ -1,9 +1,10 @@
+import { sandboxStatus, startSandbox, type SandboxHandle } from "../utils/sdk-compat.js";
 import fs from "node:fs";
 import path from "node:path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Sandbox, type SandboxHandle } from "microsandbox";
+import { Sandbox } from "microsandbox";
 
 import { formatError } from "../utils/errors.js";
 import { Snapshot } from "../utils/snapshot-api.js";
@@ -319,11 +320,11 @@ export function registerSandboxTools(server: McpServer): void {
         const handles = await resolveSandboxHandles(selector, { requireSelector: true });
         const results = [];
         for (const handle of handles) {
-          if (handle.status === "running") {
+          if (await sandboxStatus(handle) === "running") {
             results.push({ name: handle.name, started: false, alreadyRunning: true });
             continue;
           }
-          const sandbox = await handle.startDetached();
+          const sandbox = await startSandbox(handle);
           await sandbox.detach();
           results.push({ name: handle.name, started: true });
         }
@@ -349,7 +350,7 @@ export function registerSandboxTools(server: McpServer): void {
     async (selector) => {
       try {
         const handles = await resolveSandboxHandles(selector, { defaultAll: true });
-        return ok(handles.map(sandboxSummaryData));
+        return ok(await Promise.all(handles.map(sandboxSummaryData)));
       } catch (error) {
         return formatError(error);
       }
@@ -372,7 +373,7 @@ export function registerSandboxTools(server: McpServer): void {
       try {
         const status = selector.status ?? (selector.name || selector.names ? "all" : "running");
         const handles = await resolveSandboxHandles({ ...selector, status }, { defaultAll: true });
-        return ok(handles.map(sandboxSummaryData));
+        return ok(await Promise.all(handles.map(sandboxSummaryData)));
       } catch (error) {
         return formatError(error);
       }
@@ -396,7 +397,7 @@ export function registerSandboxTools(server: McpServer): void {
     async ({ name }) => {
       try {
         const handle = await Sandbox.get(name);
-        return ok(sandboxHandleData(handle));
+        return ok(await sandboxHandleData(handle));
       } catch (error) {
         return formatError(error);
       }
@@ -423,8 +424,8 @@ export function registerSandboxTools(server: McpServer): void {
         const handles = await resolveSandboxHandles(selector, { requireSelector: true });
         const results = [];
         for (const handle of handles) {
-          if (handle.status !== "running") {
-            results.push({ name: handle.name, stopped: false, alreadyStopped: true, status: handle.status });
+          if (await sandboxStatus(handle) !== "running") {
+            results.push({ name: handle.name, stopped: false, alreadyStopped: true, status: await sandboxStatus(handle) });
             continue;
           }
           if (force) {
@@ -461,8 +462,8 @@ export function registerSandboxTools(server: McpServer): void {
         const handles = await resolveSandboxHandles(selector, { requireSelector: true });
         const results = [];
         for (const handle of handles) {
-          if (handle.status !== "running") {
-            results.push({ name: handle.name, drainRequested: false, status: handle.status });
+          if (await sandboxStatus(handle) !== "running") {
+            results.push({ name: handle.name, drainRequested: false, status: await sandboxStatus(handle) });
             continue;
           }
           await handle.requestDrain();
@@ -520,7 +521,7 @@ export function registerSandboxTools(server: McpServer): void {
         const handles = await resolveSandboxHandles(selector, { requireSelector: true });
         const results = [];
         for (const handle of handles) {
-          if (force && handle.status === "running") {
+          if (force && await sandboxStatus(handle) === "running") {
             await handle.kill();
           }
           await Sandbox.remove(handle.name);
@@ -539,7 +540,7 @@ async function waitForStopped(name: string, timeoutMs = 10000): Promise<void> {
   while (Date.now() - start < timeoutMs) {
     try {
       const h = await Sandbox.get(name);
-      if (h.status !== "running") return;
+      if (await sandboxStatus(h) !== "running") return;
     } catch {
       return;
     }
@@ -795,7 +796,8 @@ async function resolveSandboxHandles(
 
   let handles = [...map.values()];
   if (selector.status && selector.status !== "all") {
-    handles = handles.filter((handle) => handle.status === selector.status);
+    const statuses = await Promise.all(handles.map(sandboxStatus));
+    handles = handles.filter((_, index) => statuses[index] === selector.status);
   }
   handles.sort((left, right) => left.name.localeCompare(right.name));
   return handles;

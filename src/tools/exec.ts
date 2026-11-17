@@ -1,3 +1,4 @@
+import { connectSandbox, sandboxStatus, startSandbox } from "../utils/sdk-compat.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { Sandbox, type Sandbox as SandboxInstance } from "microsandbox";
@@ -314,13 +315,13 @@ async function openSandboxForExec(
   warning?: string;
 }> {
   const handle = await Sandbox.get(name);
-  if (handle.status === "running") {
-    return { sandbox: await handle.connect(), stopAfter: false };
+  if (await sandboxStatus(handle) === "running") {
+    return { sandbox: await connectSandbox(handle), stopAfter: false };
   }
   if (!startIfStopped) {
-    return { sandbox: await handle.connect(), stopAfter: false };
+    return { sandbox: await connectSandbox(handle), stopAfter: false };
   }
-  const sandbox = await handle.startDetached();
+  const sandbox = await startSandbox(handle);
   return {
     sandbox,
     stopAfter: !keepRunning,

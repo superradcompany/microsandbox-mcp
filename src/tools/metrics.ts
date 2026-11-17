@@ -1,3 +1,4 @@
+import { connectSandbox } from "../utils/sdk-compat.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { allSandboxMetrics, Sandbox } from "microsandbox";
@@ -24,7 +25,7 @@ export function registerMetricsTools(server: McpServer): void {
     async ({ name }) => {
       try {
         const handle = await Sandbox.get(name);
-        const sandbox = await handle.connect();
+        const sandbox = await connectSandbox(handle);
         return ok(metricsData(await sandbox.metrics()));
       } catch (error) {
         return formatError(error);
@@ -75,7 +76,7 @@ export function registerMetricsTools(server: McpServer): void {
     async ({ name, intervalMs, samples }) => {
       const stream = await (async () => {
         const handle = await Sandbox.get(name);
-        const sandbox = await handle.connect();
+        const sandbox = await connectSandbox(handle);
         return sandbox.metricsStream(intervalMs ?? 1000);
       })();
 

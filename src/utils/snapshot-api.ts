@@ -1,8 +1,10 @@
 import * as sdk from "microsandbox";
-import type { SaveOpts, SnapshotBuilder, SnapshotHandle } from "microsandbox";
+import type { SaveOpts, SnapshotBuilder } from "microsandbox";
 
 // The builder remains the artifact builder in both SDK generations. Deriving
 // the result here avoids mistaking the new group-oriented Snapshot for a file.
+type SnapshotHandle = Awaited<ReturnType<typeof sdk.Snapshot.get>>;
+
 export type Snapshot = Awaited<ReturnType<SnapshotBuilder["create"]>>;
 
 export interface SnapshotArtifactApi {
