@@ -38,7 +38,7 @@ export function registerVolumeTools(server: McpServer): void {
           builder = builder.label(key, value);
         }
         await builder.create();
-        return ok(volumeHandleData(await Volume.get(name)));
+        return ok(await volumeHandleData(await Volume.get(name)));
       } catch (error) {
         return formatError(error);
       }
@@ -60,7 +60,7 @@ export function registerVolumeTools(server: McpServer): void {
     async () => {
       try {
         const handles = await Volume.list();
-        return ok(handles.map(volumeHandleData));
+        return ok(await Promise.all(handles.map(volumeHandleData)));
       } catch (error) {
         return formatError(error);
       }
@@ -83,7 +83,7 @@ export function registerVolumeTools(server: McpServer): void {
     },
     async ({ name }) => {
       try {
-        return ok(volumeHandleData(await Volume.get(name)));
+        return ok(await volumeHandleData(await Volume.get(name)));
       } catch (error) {
         return formatError(error);
       }

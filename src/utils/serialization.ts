@@ -4,32 +4,34 @@ import type {
   ImageDetail,
   ImageHandle,
   LogEntry,
-  SandboxHandle,
   SandboxMetrics,
-  SnapshotHandle,
-  VolumeHandle,
 } from "microsandbox";
+import type { Volume, Snapshot as SdkSnapshot } from "microsandbox";
+import { observation, type SandboxHandle } from "./sdk-compat.js";
 import type { Snapshot } from "./snapshot-api.js";
 
-export function sandboxHandleData(handle: SandboxHandle): Record<string, unknown> {
+export async function sandboxHandleData(handle: SandboxHandle): Promise<Record<string, unknown>> {
+  const current = typeof Reflect.get(handle, "info") === "function";
+  const info: object = current ? await observation<Record<string, unknown>>(handle, "info") : handle;
   return {
     name: handle.name,
-    status: handle.status,
-    config: parseJson(handle.configJson),
-    createdAt: toIso(handle.createdAt),
-    updatedAt: toIso(handle.updatedAt),
+    status: Reflect.get(info, "status"),
+    config: current ? await observation(handle, "config") : parseJson(Reflect.get(handle, "configJson")),
+    createdAt: toIso(Reflect.get(info, "createdAt")),
+    updatedAt: toIso(Reflect.get(info, "updatedAt")),
   };
 }
 
-export function sandboxSummaryData(handle: SandboxHandle): Record<string, unknown> {
-  const config = parseJson(handle.configJson) as Record<string, unknown> | null;
+export async function sandboxSummaryData(handle: SandboxHandle): Promise<Record<string, unknown>> {
+  const data = await sandboxHandleData(handle);
+  const config = data.config as Record<string, unknown> | null;
   return {
-    name: handle.name,
-    status: handle.status,
+    name: data.name,
+    status: data.status,
     image: imageFromConfig(config),
     labels: labelsFromConfig(config),
-    createdAt: toIso(handle.createdAt),
-    updatedAt: toIso(handle.updatedAt),
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
   };
 }
 
@@ -103,21 +105,23 @@ export function imageDetailData(detail: ImageDetail): Record<string, unknown> {
   };
 }
 
-export function volumeHandleData(handle: VolumeHandle): Record<string, unknown> {
+export async function volumeHandleData(volume: Awaited<ReturnType<typeof Volume.get>>): Promise<Record<string, unknown>> {
+  const handle = typeof Reflect.get(volume, "info") === "function"
+    ? await observation<object>(volume, "info") : volume;
   return {
-    name: handle.name,
-    kind: handle.kind,
-    quotaMib: handle.quotaMib,
-    usedBytes: handle.usedBytes,
-    capacityBytes: handle.capacityBytes,
-    diskFormat: handle.diskFormat,
-    diskFstype: handle.diskFstype,
-    labels: Object.fromEntries(handle.labels),
-    createdAt: toIso(handle.createdAt),
+    name: Reflect.get(handle, "name"),
+    kind: Reflect.get(handle, "kind"),
+    quotaMib: Reflect.get(handle, "quotaMib"),
+    usedBytes: Reflect.get(handle, "usedBytes"),
+    capacityBytes: Reflect.get(handle, "capacityBytes"),
+    diskFormat: Reflect.get(handle, "diskFormat"),
+    diskFstype: Reflect.get(handle, "diskFstype"),
+    labels: Object.fromEntries(Reflect.get(handle, "labels")),
+    createdAt: toIso(Reflect.get(handle, "createdAt")),
   };
 }
 
-export function snapshotHandleData(handle: SnapshotHandle): Record<string, unknown> {
+export function snapshotHandleData(handle: Awaited<ReturnType<typeof SdkSnapshot.get>>): Record<string, unknown> {
   return {
     reference: handle.reference,
     referenceKind: handle.referenceKind,
@@ -133,7 +137,7 @@ export function snapshotHandleData(handle: SnapshotHandle): Record<string, unkno
   };
 }
 
-export function snapshotData(snapshot: Snapshot): Record<string, unknown> {
+export async function snapshotData(snapshot: Snapshot): Promise<Record<string, unknown>> {
   return {
     reference: snapshot.reference,
     referenceKind: snapshot.referenceKind,
@@ -141,14 +145,14 @@ export function snapshotData(snapshot: Snapshot): Record<string, unknown> {
     digest: snapshot.digest,
     sizeBytes: bigintToString(snapshot.sizeBytes),
     imageRef: snapshot.imageRef,
-    imageManifestDigest: snapshot.imageManifestDigest,
+    imageManifestDigest: await observation(snapshot, "imageManifestDigest"),
     scope: snapshot.scope,
     format: snapshot.format,
     fstype: snapshot.fstype,
     parent: snapshot.parent,
     createdAt: snapshot.createdAt,
-    labels: Object.fromEntries(snapshot.labels),
-    sourceSandbox: snapshot.sourceSandbox,
+    labels: Object.fromEntries(await observation<ReadonlyArray<readonly [string, string]>>(snapshot, "labels")),
+    sourceSandbox: await observation(snapshot, "sourceSandbox"),
   };
 }
 

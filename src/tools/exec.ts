@@ -1,3 +1,4 @@
+import { setDuration, connectSandbox, sandboxStatus, startSandbox } from "../utils/sdk-compat.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { Sandbox, type Sandbox as SandboxInstance } from "microsandbox";
@@ -294,7 +295,7 @@ function applyExecOptions(
   if (args.user) acc = acc.user(args.user);
   if (args.tty !== undefined) acc = acc.tty(args.tty);
   const timeoutMs = args.timeoutMs ?? (args.timeout ? args.timeout * 1000 : undefined);
-  if (timeoutMs) acc = acc.timeout(timeoutMs);
+  if (timeoutMs) acc = setDuration(acc, "timeoutMilliseconds", timeoutMs);
   for (const rlimit of args.rlimits ?? []) {
     acc = acc.rlimitRange(rlimit.resource, rlimit.soft, rlimit.hard ?? rlimit.soft);
   }
@@ -314,13 +315,13 @@ async function openSandboxForExec(
   warning?: string;
 }> {
   const handle = await Sandbox.get(name);
-  if (handle.status === "running") {
-    return { sandbox: await handle.connect(), stopAfter: false };
+  if (await sandboxStatus(handle) === "running") {
+    return { sandbox: await connectSandbox(handle), stopAfter: false };
   }
   if (!startIfStopped) {
-    return { sandbox: await handle.connect(), stopAfter: false };
+    return { sandbox: await connectSandbox(handle), stopAfter: false };
   }
-  const sandbox = await handle.startDetached();
+  const sandbox = await startSandbox(handle);
   return {
     sandbox,
     stopAfter: !keepRunning,

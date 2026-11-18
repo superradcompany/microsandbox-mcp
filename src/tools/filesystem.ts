@@ -1,3 +1,4 @@
+import { connectSandbox } from "../utils/sdk-compat.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { Sandbox } from "microsandbox";
@@ -343,7 +344,7 @@ export function registerFilesystemTools(server: McpServer): void {
 
 async function sandboxFs(name: string) {
   const handle = await Sandbox.get(name);
-  const sandbox = await handle.connect();
+  const sandbox = await connectSandbox(handle);
   return sandbox.fs();
 }
 
