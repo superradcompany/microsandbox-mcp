@@ -27,9 +27,9 @@ function snapshotFixture(referenceKind) {
 
 for (const [kind, serialize] of [["snapshot", snapshotData], ["handle", snapshotHandleData]]) {
   for (const referenceKind of ["path", "id"]) {
-    test(`${kind} preserves ${referenceKind} references without reading the path getter`, () => {
+    test(`${kind} preserves ${referenceKind} references without reading the path getter`, async () => {
       const fixture = snapshotFixture(referenceKind);
-      const serialized = serialize(fixture);
+      const serialized = await serialize(fixture);
 
       assert.equal(serialized.reference, fixture.reference);
       assert.equal(serialized.referenceKind, referenceKind);
@@ -42,22 +42,22 @@ for (const [kind, serialize] of [["snapshot", snapshotData], ["handle", snapshot
     });
   }
 
-  test(`${kind} preserves an unknown cloud snapshot size`, () => {
+  test(`${kind} preserves an unknown cloud snapshot size`, async () => {
     const fixture = snapshotFixture("id");
     fixture.sizeBytes = null;
-    assert.equal(serialize(fixture).sizeBytes, null);
+    assert.equal((await serialize(fixture)).sizeBytes, null);
   });
 }
 
-test("snapshot serialization preserves labels and capture metadata", () => {
-  const serialized = snapshotData(snapshotFixture("id"));
+test("snapshot serialization preserves labels and capture metadata", async () => {
+  const serialized = await snapshotData(snapshotFixture("id"));
   assert.deepEqual(serialized.labels, { app: "example" });
   assert.equal(serialized.parent, "sha256:parent");
   assert.equal(serialized.sourceSandbox, "app/source");
   assert.equal(serialized.imageManifestDigest, "sha256:image");
 });
 
-test("snapshot handle serialization preserves summary metadata", () => {
+test("snapshot handle serialization preserves summary metadata", async () => {
   const fixture = snapshotFixture("id");
   fixture.createdAt = new Date("2026-09-15T00:00:00Z");
   const serialized = snapshotHandleData(fixture);

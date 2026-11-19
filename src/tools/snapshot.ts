@@ -47,7 +47,7 @@ export function registerSnapshotTools(server: McpServer): void {
           builder = builder.label(key, value);
         }
 
-        return ok(snapshotData(await builder.create()));
+        return ok(await snapshotData(await builder.create()));
       } catch (error) {
         return formatError(error);
       }
@@ -94,7 +94,7 @@ export function registerSnapshotTools(server: McpServer): void {
       try {
         const snapshot = await openSnapshot(pathOrName);
         return ok({
-          ...snapshotData(snapshot),
+          ...await snapshotData(snapshot),
           verify: verify ? await snapshot.verify() : undefined,
         });
       } catch (error) {
@@ -257,7 +257,9 @@ function resolveSnapshotArg(pathOrName: string): string {
 async function openSnapshot(pathOrName: string): Promise<Snapshot> {
   if (looksLikePath(pathOrName)) return Snapshot.open(assertHostPathAllowed(pathOrName));
   try {
-    return await (await Snapshot.get(pathOrName)).open();
+    const snapshot = await Snapshot.get(pathOrName);
+    const open: unknown = Reflect.get(snapshot, "open");
+    return typeof open === "function" ? await open.call(snapshot) : snapshot as unknown as Snapshot;
   } catch {
     return Snapshot.open(pathOrName);
   }

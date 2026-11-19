@@ -1,3 +1,4 @@
+import { connectSandbox } from "../utils/sdk-compat.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { Sandbox, type SshClient } from "microsandbox";
@@ -325,7 +326,7 @@ async function openSshClient(
   options: { user?: string; term?: string; sftp?: boolean },
 ): Promise<SshClient> {
   const handle = await Sandbox.get(name);
-  const sandbox = await handle.connect();
+  const sandbox = await connectSandbox(handle);
   return sandbox.ssh().openClient(options);
 }
 
