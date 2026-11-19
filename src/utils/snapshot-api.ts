@@ -3,7 +3,11 @@ import type { SaveOpts, SnapshotBuilder } from "microsandbox";
 
 // The builder remains the artifact builder in both SDK generations. Deriving
 // the result here avoids mistaking the new group-oriented Snapshot for a file.
-type SnapshotHandle = Awaited<ReturnType<typeof sdk.Snapshot.get>>;
+// Match the static runtime selector below even when Snapshot names a history.
+type ArtifactApi = typeof sdk extends { Checkpoint: infer Checkpoint }
+  ? Checkpoint
+  : typeof sdk.Snapshot;
+export type SnapshotHandle = Awaited<ReturnType<ArtifactApi["get"]>>;
 
 export type Snapshot = Awaited<ReturnType<SnapshotBuilder["create"]>>;
 

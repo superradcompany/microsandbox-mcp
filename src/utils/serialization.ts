@@ -5,10 +5,10 @@ import type {
   ImageHandle,
   LogEntry,
   SandboxMetrics,
+  Volume,
 } from "microsandbox";
-import type { Volume, Snapshot as SdkSnapshot } from "microsandbox";
 import { observation, type SandboxHandle } from "./sdk-compat.js";
-import type { Snapshot } from "./snapshot-api.js";
+import type { Snapshot, SnapshotHandle } from "./snapshot-api.js";
 
 export async function sandboxHandleData(handle: SandboxHandle): Promise<Record<string, unknown>> {
   const current = typeof Reflect.get(handle, "info") === "function";
@@ -121,7 +121,7 @@ export async function volumeHandleData(volume: Awaited<ReturnType<typeof Volume.
   };
 }
 
-export function snapshotHandleData(handle: Awaited<ReturnType<typeof SdkSnapshot.get>>): Record<string, unknown> {
+export function snapshotHandleData(handle: SnapshotHandle): Record<string, unknown> {
   return {
     reference: handle.reference,
     referenceKind: handle.referenceKind,
